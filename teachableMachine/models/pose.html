@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+        <title>Teachable Machine Project</title>
+        <base href="/">
+        
+        <!-- CSS -->
+        <link rel="stylesheet" href="css/reset.css">
+        <link rel="stylesheet" href="css/simplegrid.css">
+        <link rel="stylesheet" href="css/icomoon.css">
+        <link rel="stylesheet" href="css/lightcase.css">
+        <link rel="stylesheet" href="js/owl-carousel/owl.carousel.css" />
+        <link rel="stylesheet" href="js/owl-carousel/owl.theme.css" />
+        <link rel="stylesheet" href="js/owl-carousel/owl.transitions.css" />
+        <link rel="stylesheet" href="style.css">
+
+        <!-- Google Fonts -->
+        <link href='http://fonts.googleapis.com/css?family=Source+Sans+Pro:300,400,700,900' rel='stylesheet' type='text/css'>
+        <link href='http://fonts.googleapis.com/css?family=Montserrat:400,700' rel='stylesheet' type='text/css'>
+
+
+        <!-- HTML5 Shim and Respond.js IE8 support of HTML5 elements and media queries -->
+           <!-- WARNING: Respond.js doesn't work if you view the page via file:// -->
+           <!--[if lt IE 9]>
+             <script src="https://oss.maxcdn.com/libs/html5shiv/3.7.0/html5shiv.js"></script>
+             <script src="https://oss.maxcdn.com/libs/respond.js/1.4.2/respond.min.js"></script>
+           <![endif]-->
+    </head>
+<body id="home">
+    
+<div class="wrap" id="pricing">
+ <div class="grid grid-pad">
+     <div class="content" >
+         <div class="col-1-1">
+             <section id="price-tables1">
+                 <h2>Poses</h2>
+                 <ul id="plans">
+                     <li class="plan" >
+                         <ul class="plan-wrap">
+                            <div id="c"><canvas id="canvas"></canvas></div>
+                             <li>
+                                 <div class="labell">
+                                <div id="label-container"></div>
+                                </div>
+                             <li><button id="start" class="btn btn-price" type="button" onclick="init()">Start</button></li>
+                         </ul>
+                     </li>
+                     </ul>
+                 </section>
+             </div>
+         </div>
+     </div>
+ </div>
+
+
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@1.3.1/dist/tf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@teachablemachine/pose@0.8/dist/teachablemachine-pose.min.js"></script>
+<script type="text/javascript">
+    // More API functions here:
+    // https://github.com/googlecreativelab/teachablemachine-community/tree/master/libraries/pose
+
+    // the link to your model provided by Teachable Machine export panel
+    const URL = "https://teachablemachine.withgoogle.com/models/W5-KKzWcq/";
+    let model, webcam, ctx, labelContainer, maxPredictions;
+
+    async function init() {
+        const modelURL = URL + "model.json";
+        const metadataURL = URL + "metadata.json";
+
+        start=document.getElementById('start');
+        start.style.visibility = "hidden";
+        canvasDiv = document.getElementById("c");
+        c.style.height = "300px";
+        // load the model and metadata
+        // Refer to tmImage.loadFromFiles() in the API to support files from a file picker
+        // Note: the pose library adds a tmPose object to your window (window.tmPose)
+        model = await tmPose.load(modelURL, metadataURL);
+        maxPredictions = model.getTotalClasses();
+
+        // Convenience function to setup a webcam
+        const size = 200;
+        const flip = true; // whether to flip the webcam
+        webcam = new tmPose.Webcam(size, size, flip); // width, height, flip
+        await webcam.setup(); // request access to the webcam
+        await webcam.play();
+        window.requestAnimationFrame(loop);
+
+        // append/get elements to the DOM
+        const canvas = document.getElementById("canvas");
+        canvas.width = size; canvas.height = size;
+        ctx = canvas.getContext("2d");
+        labelContainer = document.getElementById("label-container");
+        for (let i = 0; i < maxPredictions; i++) { // and class labels
+            label = document.createElement("div");
+            label.classList.add(`label${i}`, 'cuadro');
+            labelContainer.appendChild(label);
+        }
+    }
+
+    async function loop(timestamp) {
+        webcam.update(); // update the webcam frame
+        await predict();
+        window.requestAnimationFrame(loop);
+    }
+
+    async function predict() {
+        // Prediction #1: run input through posenet
+        // estimatePose can take in an image, video or canvas html element
+        const { pose, posenetOutput } = await model.estimatePose(webcam.canvas);
+        // Prediction 2: run input through teachable machine classification model
+        const prediction = await model.predict(posenetOutput);
+
+        for (let i = 0; i < maxPredictions; i++) {
+            const classPrediction =
+                prediction[i].className + ": " + prediction[i].probability.toFixed(2);
+            labelContainer.childNodes[i].innerHTML = classPrediction;
+        }
+
+        // finally draw the poses
+        drawPose(pose);
+    }
+
+    function drawPose(pose) {
+        if (webcam.canvas) {
+            ctx.drawImage(webcam.canvas, 0, 0);
+            // draw the keypoints and skeleton
+            if (pose) {
+                const minPartConfidence = 0.5;
+                tmPose.drawKeypoints(pose.keypoints, minPartConfidence, ctx);
+                tmPose.drawSkeleton(pose.keypoints, minPartConfidence, ctx);
+            }
+        }
+    }
+</script>
+
+    
+</body>
+</html>
